@@ -1,6 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+import { setupVite } from "./vite";
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -9,7 +9,6 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -41,36 +40,35 @@ app.use((req, res, next) => {
   next();
 });
 
-(async () => {
-  const server = await registerRoutes(app);
+registerRoutes(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+if (process.env.NODE_ENV === 'development') {
+  // In development, use Vite middleware
+  setupVite(app);
+} else {
+  // In production, serve static files from the client build
+  const clientBuildPath = path.resolve(__dirname, '..', 'client', 'dist');
+  app.use(express.static(clientBuildPath));
 
-    res.status(status).json({ message });
-    throw err;
+  // For any other request, serve the index.html
+  app.get('*', (req, res) => {
+    res.sendFile(path.resolve(clientBuildPath, 'index.html'));
   });
+}
 
-  if (process.env.NODE_ENV === 'development') {
-    // In development, use Vite middleware
-    await setupVite(app, server);
-  } else {
-    // In production, serve static files from the client build
-    const clientBuildPath = path.resolve(__dirname, '..', 'client', 'dist');
-    app.use(express.static(clientBuildPath));
-
-    // For any other request, serve the index.html
-    app.get('*', (req, res) => {
-      res.sendFile(path.resolve(clientBuildPath, 'index.html'));
-    });
-  }
-
+function startServer() {
   // ALWAYS serve the app on port 5000
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = process.env.PORT || 5000;
-  server.listen(port, () => {
+  app.listen(port, () => {
     log(`serving on port ${port}`);
   });
-})();
+}
+
+// This will be the case on Vercel
+if (process.env.NODE_ENV !== 'development') {
+  startServer();
+}
+
+export const server = app;
