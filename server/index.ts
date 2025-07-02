@@ -1,6 +1,11 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(express.json());
@@ -47,13 +52,18 @@ app.use((req, res, next) => {
     throw err;
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
+  if (process.env.NODE_ENV === 'development') {
+    // In development, use Vite middleware
     await setupVite(app, server);
   } else {
-    serveStatic(app);
+    // In production, serve static files from the client build
+    const clientBuildPath = path.resolve(__dirname, '..', 'client', 'dist');
+    app.use(express.static(clientBuildPath));
+
+    // For any other request, serve the index.html
+    app.get('*', (req, res) => {
+      res.sendFile(path.resolve(clientBuildPath, 'index.html'));
+    });
   }
 
   // ALWAYS serve the app on port 5000
