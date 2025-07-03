@@ -30,13 +30,7 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       input: {
         main: path.resolve(import.meta.dirname, 'index.html')
-      },
-      output: {
-        manualChunks: {
-          react: ['react', 'react-dom', 'react-router-dom'],
-          vendor: ['framer-motion', 'lucide-react'],
-        },
-      },
+      }
     },
     terserOptions: {
       compress: {
@@ -44,13 +38,5 @@ export default defineConfig(({ mode }) => ({
         drop_debugger: mode !== 'development',
       },
     },
-  },
-  server: {
-    port: 3000,
-    open: true,
-  },
-  preview: {
-    port: 3000,
-    open: true,
   },
 }));
