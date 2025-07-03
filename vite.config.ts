@@ -1,37 +1,56 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
-import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
+import { visualizer } from 'rollup-plugin-visualizer';
 
-export default defineConfig({
+// https://vitejs.dev/config/
+export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
-    runtimeErrorOverlay(),
-    ...(process.env.NODE_ENV !== "production" &&
-    process.env.REPL_ID !== undefined
-      ? [
-          await import("@replit/vite-plugin-cartographer").then((m) =>
-            m.cartographer(),
-          ),
-        ]
-      : []),
-  ],
+    mode === 'analyze' && visualizer({
+      open: true,
+      filename: 'bundle-analyzer.html',
+    }),
+  ].filter(Boolean),
   resolve: {
     alias: {
-      "@": path.resolve(import.meta.dirname, "client", "src"),
+      "@": path.resolve(import.meta.dirname, "src"),
       "@shared": path.resolve(import.meta.dirname, "shared"),
-      "@assets": path.resolve(import.meta.dirname, "attached_assets"),
+      "@assets": path.resolve(import.meta.dirname, "public"),
     },
   },
-  root: path.resolve(import.meta.dirname, "client"),
+  root: ".",
+  publicDir: "public",
   build: {
-    outDir: path.resolve(import.meta.dirname, "dist/public"),
+    outDir: "dist",
     emptyOutDir: true,
+    sourcemap: mode === 'development',
+    minify: 'terser',
+    cssMinify: true,
+    rollupOptions: {
+      input: {
+        main: path.resolve(import.meta.dirname, 'index.html')
+      },
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom', 'react-router-dom'],
+          vendor: ['framer-motion', 'lucide-react'],
+        },
+      },
+    },
+    terserOptions: {
+      compress: {
+        drop_console: mode !== 'development',
+        drop_debugger: mode !== 'development',
+      },
+    },
   },
   server: {
-    fs: {
-      strict: true,
-      deny: ["**/.*"],
-    },
+    port: 3000,
+    open: true,
   },
-});
+  preview: {
+    port: 3000,
+    open: true,
+  },
+}));
